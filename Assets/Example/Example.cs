@@ -9,10 +9,10 @@ public class Example : MonoBehaviour
     private Camera camera;
     
     [SerializeField]
-    private Image imageLeft;
+    private RectTransform anchorLeft;
 
     [SerializeField]
-    private Image imageRight;
+    private RectTransform anchorRight;
 
     [SerializeField]
     private Button btnOpen;
@@ -48,6 +48,8 @@ public class Example : MonoBehaviour
     private void Update()
     {
         CheckBackForward();
+        
+        HideBar();
     }
 
     private void OnOpen()
@@ -61,10 +63,69 @@ public class Example : MonoBehaviour
         };
 
         _webView = _webViewGO.AddComponent<WebViewObject>();
-        _webView.Init();
+        _webView.Init(
+            cb: (msg) =>
+            {
+                Debug.Log($"CallFromJS[{msg}]");
+                
+                if (msg == "close") {
+                    Destroy(_webView.gameObject);
+                }
+            },
+            err: (msg) =>
+            {
+                Debug.Log($"CallOnError[{msg}]");
+            },
+            httpErr: (msg) =>
+            {
+                Debug.Log($"CallOnHttpError[{msg}]");
+            },
+            started: (msg) =>
+            {
+                Debug.Log($"CallOnStarted[{msg}]");
+            },
+            hooked: (msg) =>
+            {
+                Debug.Log($"CallOnHooked[{msg}]");
+            },
+            ld: (msg) =>
+            {
+                Debug.Log($"CallOnLoaded[{msg}]");
+                
+                // _webView.EvaluateJS(@"document.getElementById('items').remove();");
+                
+                _webView.EvaluateJS(@"Unity.call('ua=' + navigator.userAgent)");
+                // _webView.EvaluateJS(
+                //     "(function() {" +
+                //     "  var button;" +
+                //     "  button = document.createElement('button');" +
+                //     "  button.style.position = 'fixed';" +
+                //     "  button.style.right = '0px';" +
+                //     "  button.style.top = '0px';" +
+                //     "  button.style.zIndex = 2147483647;" +
+                //     "  button.textContent = 'X';" +
+                //     "  button.onclick = function() {" +
+                //     "    Unity.call('close');" +
+                //     "  };" +
+                //     "  document.body.appendChild(button);" +
+                //     "})()");
+                
+                // _webView.EvaluateJS(
+                //     "(function() {" +
+                //     "   var items = document.body;" +
+                //     "   Unity.call('document body:' + items.tagName);" +
+                //     "})()");
+                //
+                // _webView.EvaluateJS(
+                //     "(function() {" +
+                //     "   var items = document.activeElement;" +
+                //     "   Unity.call('active element:' + items.tagName);" +
+                //     "})()");
+            }
+        );
 
-        var leftAnchor = RectTransformUtility.WorldToScreenPoint(camera, imageLeft.transform.position);
-        var rightAnchor = RectTransformUtility.WorldToScreenPoint(camera, imageRight.transform.position);
+        var leftAnchor = RectTransformUtility.WorldToScreenPoint(camera, anchorLeft.transform.position);
+        var rightAnchor = RectTransformUtility.WorldToScreenPoint(camera, anchorRight.transform.position);
         
         var left = (int) leftAnchor.x;
         var top = Screen.height - (int)leftAnchor.y;
@@ -119,5 +180,25 @@ public class Example : MonoBehaviour
         
         btnBack.gameObject.SetActive(_webView.CanGoBack());
         btnForward.gameObject.SetActive(_webView.CanGoForward());
+
+        HideBar();
+    }
+
+    private void HideBar()
+    {
+        if (_webViewGO == null)
+        {
+            return;
+        }
+        
+        _webView.EvaluateJS(
+            "(function() {" +
+            "   var items = document.getElementsByTagName('ytm-pivot-bar-renderer');" +
+            "	if(items.length === 0)" + 
+            "		return;" +
+            "   var bar = items[0];" +
+            "   bar.remove();" +
+            "   Unity.call('remove element:' + bar.className);" +
+            "})()");
     }
 }
